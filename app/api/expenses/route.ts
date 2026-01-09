@@ -193,50 +193,40 @@ export async function POST(request: NextRequest) {
     // 检查数据库连接
     const dbConnected = await checkDatabaseConnection();
 
-    // 如果数据库未连接，使用宽松验证
+    // 总是进行数据库操作，除非明确知道连接失败
     let validatedData;
-    if (!dbConnected) {
-      // 宽松验证（仅检查必要字段）
-      if (!body.amount || !body.description || !body.categoryId || !body.date) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: '缺少必要字段',
-          },
-          { status: 400 }
-        );
-      }
-      validatedData = {
-        amount: Number(body.amount),
-        categoryId: body.categoryId,
-        description: String(body.description),
-        date: new Date(body.date),
-      };
-    } else {
+    try {
       // 严格验证（使用 Zod schema）
       validatedData = createExpenseSchema.parse(body);
+    } catch (error) {
+      // 如果 Zod 验证失败，返回错误
+      return NextResponse.json(
+        {
+          success: false,
+          error: '输入数据验证失败',
+          details: error instanceof Error ? error.message : '未知错误',
+        },
+        { status: 400 }
+      );
     }
 
+    // 如果连接检查显示未连接，尝试创建数据库连接
+    let shouldUseDatabase = dbConnected;
     if (!dbConnected) {
-      // 返回模拟成功响应
-      console.warn('Database not connected, simulating expense creation');
+      console.log('Attempting to use database despite connection check failure...');
+      shouldUseDatabase = true; // 尝试使用数据库
+    }
 
-      const mockExpense = {
-        id: Math.random().toString(36).substr(2, 9),
-        amount: validatedData.amount,
-        categoryId: validatedData.categoryId,
-        description: validatedData.description,
-        date: validatedData.date,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: mockExpense,
-        message: '开支创建成功（模拟数据）',
-        isMockData: true,
-      });
+    if (!shouldUseDatabase) {
+      // 这是一个降级路径，实际上不应该到达这里
+      console.warn('Database connection failed, returning error');
+      return NextResponse.json(
+        {
+          success: false,
+          error: '数据库连接失败，请稍后重试',
+        },
+        { status: 500 }
+      );
     }
 
     // 验证分类是否存在且属于用户

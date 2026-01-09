@@ -58,9 +58,22 @@ export async function transaction<T>(
  */
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
+    // 检查环境变量
     if (!DATABASE_URL && !NEON_DATABASE_URL) {
+      console.warn('Database URL not configured');
       return false;
     }
+
+    // 在 serverless 环境中，简化连接检查
+    // 避免过度检查导致的性能问题
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      // 在 serverless 环境中，假设连接是正常的
+      // 实际错误会在查询时抛出
+      console.log('Serverless environment detected, assuming database connection is available');
+      return true;
+    }
+
+    // 本地开发环境进行完整检查
     await sql`SELECT 1`;
     return true;
   } catch (error) {

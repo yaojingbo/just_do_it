@@ -111,24 +111,17 @@ export async function GET(request: NextRequest) {
     // 检查数据库连接
     const dbConnected = await checkDatabaseConnection();
 
+    // 总是尝试使用数据库，除非明确知道连接失败
+    let shouldUseDatabase = dbConnected;
     if (!dbConnected) {
-      // 返回模拟数据
-      console.warn('Database not connected, using mock categories data');
+      console.log('Attempting to use database despite connection check failure...');
+      shouldUseDatabase = true; // 尝试使用数据库
+    }
 
-      // 记录访问日志
-      try {
-        await logAccess({
-          userId,
-          action: 'READ',
-          resource: 'categories',
-          resourceId: 'list',
-          success: true,
-          ipAddress: request.ip || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
-        });
-      } catch (logError) {
-        console.warn('Log access failed:', logError);
-      }
+    let categories;
+    if (!shouldUseDatabase) {
+      // 这是一个降级路径
+      console.warn('Database connection failed, using mock categories data');
 
       return NextResponse.json({
         success: true,
@@ -139,7 +132,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 使用数据库（使用真实用户ID）
-    const categories = await CategoryDAO.findAllForUser(userId);
+    try {
+      categories = await CategoryDAO.findAllForUser(userId);
+    } catch (error) {
+      console.error('Database query failed, falling back to mock data:', error);
+      return NextResponse.json({
+        success: true,
+        data: MOCK_CATEGORIES,
+        isMockData: true,
+        message: '使用模拟数据（数据库查询失败）',
+      });
+    }
 
     await logAccess({
       userId,

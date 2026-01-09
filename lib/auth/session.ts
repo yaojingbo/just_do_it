@@ -9,37 +9,43 @@ export interface Session {
   createdAt: Date;
 }
 
-const SESSION_COOKIE_NAME = 'session_token';
+const SESSION_COOKIE_NAME = 'session_data';
 const SESSION_EXPIRY_DAYS = 30;
 
 /**
- * 生成随机令牌
+ * Base64 编码/解码
  */
-function generateSessionToken(): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+function base64Encode(str: string): string {
+  return Buffer.from(str, 'utf-8').toString('base64');
+}
+
+function base64Decode(str: string): string {
+  try {
+    return Buffer.from(str, 'base64').toString('utf-8');
+  } catch {
+    return '';
+  }
 }
 
 /**
- * 设置会话Cookie
+ * 设置会话Cookie - 将 session 数据直接存储在 cookie 中
  */
 export function setSessionCookie(session: Session): void {
-  const token = generateSessionToken();
-  const sessionData = JSON.stringify(session);
+  const sessionData = {
+    ...session,
+    expiresAt: Date.now() + (SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+  };
 
-  cookies().set(SESSION_COOKIE_NAME, token, {
+  // 将 session 数据直接编码到 cookie 中
+  const encodedSession = base64Encode(JSON.stringify(sessionData));
+
+  cookies().set(SESSION_COOKIE_NAME, encodedSession, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: SESSION_EXPIRY_DAYS * 24 * 60 * 60,
     path: '/',
   });
-
-  // 在实际应用中，这里应该将token和session的映射存储到数据库或缓存中
-  // 暂时使用内存存储（生产环境中需要使用Redis等）
-  (globalThis as any).sessionStore = (globalThis as any).sessionStore || new Map();
-  (globalThis as any).sessionStore.set(token, sessionData);
 }
 
 /**
@@ -48,39 +54,52 @@ export function setSessionCookie(session: Session): void {
 export function clearSessionCookie(): void {
   const cookieStore = cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
-
-  // 清除内存中的会话数据
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (token && (globalThis as any).sessionStore) {
-    (globalThis as any).sessionStore.delete(token);
-  }
 }
 
 /**
- * 获取当前会话
+ * 获取当前会话 - 从 cookie 中直接读取 session 数据
  */
 export async function getSession(): Promise<Session | null> {
   try {
     const cookieStore = cookies();
-    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const encodedSession = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-    if (!token) {
+    if (!encodedSession) {
       return null;
     }
 
-    // 从内存中获取会话数据
-    const sessionData = (globalThis as any).sessionStore?.get(token);
-
-    if (!sessionData) {
+    // 解码 session 数据
+    const sessionJson = base64Decode(encodedSession);
+    if (!sessionJson) {
       return null;
     }
 
-    const session: Session = JSON.parse(sessionData);
+    const sessionData = JSON.parse(sessionJson);
 
-    // 验证用户是否仍然存在
-    const user = await UserDAO.findById(session.userId);
-    if (!user) {
+    // 检查是否过期
+    if (sessionData.expiresAt && Date.now() > sessionData.expiresAt) {
+      clearSessionCookie();
       return null;
+    }
+
+    // 返回会话数据（不包含 expiresAt）
+    const session: Session = {
+      userId: sessionData.userId,
+      email: sessionData.email,
+      name: sessionData.name,
+      role: sessionData.role,
+      createdAt: new Date(sessionData.createdAt),
+    };
+
+    // 验证用户是否仍然存在（可选，避免每次都查询数据库）
+    try {
+      const user = await UserDAO.findById(session.userId);
+      if (!user) {
+        return null;
+      }
+    } catch (error) {
+      // 如果数据库查询失败，仍然返回会话数据
+      console.warn('验证用户存在性失败:', error);
     }
 
     return session;
@@ -91,16 +110,10 @@ export async function getSession(): Promise<Session | null> {
 }
 
 /**
- * 更新会话信息
+ * 更新会话信息 - 重新设置 cookie
  */
 export async function updateSession(session: Session): Promise<void> {
-  const token = cookies().get(SESSION_COOKIE_NAME)?.value;
-
-  if (!token || !(globalThis as any).sessionStore) {
-    return;
-  }
-
-  (globalThis as any).sessionStore.set(token, JSON.stringify(session));
+  setSessionCookie(session);
 }
 
 /**
