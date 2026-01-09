@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // 记录失败的注册
     try {
       await logAccess({
-        userId: null,
+        userId: undefined,
         action: 'REGISTER',
         resource: 'user',
         resourceId: 'unknown',

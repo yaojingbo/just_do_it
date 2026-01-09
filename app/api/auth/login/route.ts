@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     // 记录失败的登录
     try {
       await logAccess({
-        userId: null,
+        userId: undefined,
         action: 'LOGIN',
         resource: 'user',
         resourceId: 'unknown',
