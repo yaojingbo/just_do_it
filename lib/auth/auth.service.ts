@@ -71,7 +71,7 @@ export class AuthService {
       // 记录失败的登录尝试
       try {
         await logAccess({
-          userId: null,
+          userId: undefined,
           action: 'LOGIN',
           resource: 'user',
           resourceId: 'unknown',
