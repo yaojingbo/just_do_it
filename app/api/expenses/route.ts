@@ -195,10 +195,6 @@ export async function POST(request: NextRequest) {
     } else {
       // 严格验证（使用 Zod schema）
       validatedData = createExpenseSchema.parse(body);
-      // 将字符串日期转换为 Date 对象
-      if (typeof validatedData.date === 'string') {
-        validatedData.date = new Date(validatedData.date);
-      }
     }
 
     if (!dbConnected) {
