@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
     console.error('创建分类失败:', error);
 
     await logAccess({
-      userId: session.userId,
+      userId,
       action: 'CREATE',
       resource: 'categories',
       resourceId: 'new',
