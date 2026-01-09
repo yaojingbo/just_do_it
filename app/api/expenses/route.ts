@@ -56,6 +56,12 @@ export async function GET(request: NextRequest) {
   try {
     // 获取当前用户会话
     const session = await requireAuth();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     const userId = session.userId;
 
     const { searchParams } = new URL(request.url);
@@ -166,6 +172,12 @@ export async function POST(request: NextRequest) {
   try {
     // 获取当前用户会话
     const session = await requireAuth();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     const userId = session.userId;
 
     const body = await request.json();

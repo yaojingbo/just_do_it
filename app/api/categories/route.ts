@@ -100,6 +100,12 @@ export async function GET(request: NextRequest) {
   try {
     // 获取当前用户会话
     const session = await requireAuth();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     const userId = session.userId;
 
     // 检查数据库连接
@@ -180,11 +186,16 @@ export async function GET(request: NextRequest) {
 
 // POST /api/categories - 创建新分类
 export async function POST(request: NextRequest) {
-  // 获取当前用户会话
-  const session = await requireAuth();
-  const userId = session.userId;
-
   try {
+    // 获取当前用户会话
+    const session = await requireAuth();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    const userId = session.userId;
 
     const body = await request.json();
 
