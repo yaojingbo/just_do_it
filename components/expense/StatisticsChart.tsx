@@ -10,7 +10,7 @@ interface Expense {
   amount: number;
   categoryId: string;
   description: string;
-  date: string;
+  date: Date;
   category?: {
     name: string;
     color: string;
