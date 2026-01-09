@@ -141,6 +141,14 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('获取开支列表失败:', error);
 
+    // 如果是认证错误，返回 401
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     // 记录失败日志
     try {
       await logAccess({
@@ -273,6 +281,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('创建开支失败:', error instanceof Error ? error.message : error);
+
+    // 如果是认证错误，返回 401
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
     // 记录失败日志
     try {
