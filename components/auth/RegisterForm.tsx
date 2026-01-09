@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -17,11 +18,45 @@ export default function RegisterForm() {
     confirmPassword: '',
   });
 
+  // 密码规则检查
+  const passwordRules = [
+    {
+      label: '至少8个字符',
+      test: (pwd: string) => pwd.length >= 8,
+    },
+    {
+      label: '不超过100个字符',
+      test: (pwd: string) => pwd.length <= 100,
+    },
+    {
+      label: '包含至少一个字母',
+      test: (pwd: string) => /[a-zA-Z]/.test(pwd),
+    },
+    {
+      label: '包含至少一个数字',
+      test: (pwd: string) => /[0-9]/.test(pwd),
+    },
+  ];
+
+  const getPasswordStrength = () => {
+    const passedRules = passwordRules.filter(rule => rule.test(formData.password)).length;
+    return passedRules;
+  };
+
+  const isPasswordValid = () => {
+    return passwordRules.every(rule => rule.test(formData.password));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       alert('密码不匹配');
+      return;
+    }
+
+    if (!isPasswordValid()) {
+      alert('请确保密码符合所有规则要求');
       return;
     }
 
@@ -30,7 +65,7 @@ export default function RegisterForm() {
       email: formData.email,
       password: formData.password,
     });
-    
+
     if (success) {
       router.push('/');
     }
@@ -96,7 +131,62 @@ export default function RegisterForm() {
               onChange={handleChange}
               required
               autoComplete="new-password"
+              className={formData.password && !isPasswordValid() ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
+            {formData.password && (
+              <div className="space-y-2 mt-2">
+                <p className="text-xs font-medium text-muted-foreground">密码要求：</p>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {passwordRules.map((rule, index) => {
+                    const isValid = rule.test(formData.password);
+                    return (
+                      <div key={index} className="flex items-center gap-2 text-xs">
+                        {isValid ? (
+                          <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                        <span className={isValid ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
+                          {rule.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {formData.password && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">密码强度：</span>
+                      <span className={`font-medium ${
+                        getPasswordStrength() === passwordRules.length
+                          ? 'text-green-600 dark:text-green-400'
+                          : getPasswordStrength() >= passwordRules.length * 0.75
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                            : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {getPasswordStrength() === passwordRules.length
+                          ? '强'
+                          : getPasswordStrength() >= passwordRules.length * 0.75
+                            ? '中等'
+                            : '弱'}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 rounded-full ${
+                          getPasswordStrength() === passwordRules.length
+                            ? 'bg-green-500'
+                            : getPasswordStrength() >= passwordRules.length * 0.75
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                        }`}
+                        style={{ width: `${(getPasswordStrength() / passwordRules.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <label htmlFor="confirmPassword" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
