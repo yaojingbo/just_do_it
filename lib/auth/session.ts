@@ -38,8 +38,8 @@ export function setSessionCookie(session: Session): void {
 
   // 在实际应用中，这里应该将token和session的映射存储到数据库或缓存中
   // 暂时使用内存存储（生产环境中需要使用Redis等）
-  globalThis.sessionStore = globalThis.sessionStore || new Map();
-  globalThis.sessionStore.set(token, sessionData);
+  (globalThis as any).sessionStore = (globalThis as any).sessionStore || new Map();
+  (globalThis as any).sessionStore.set(token, sessionData);
 }
 
 /**
@@ -51,8 +51,8 @@ export function clearSessionCookie(): void {
 
   // 清除内存中的会话数据
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (token && globalThis.sessionStore) {
-    globalThis.sessionStore.delete(token);
+  if (token && (globalThis as any).sessionStore) {
+    (globalThis as any).sessionStore.delete(token);
   }
 }
 
@@ -69,7 +69,7 @@ export async function getSession(): Promise<Session | null> {
     }
 
     // 从内存中获取会话数据
-    const sessionData = globalThis.sessionStore?.get(token);
+    const sessionData = (globalThis as any).sessionStore?.get(token);
 
     if (!sessionData) {
       return null;
@@ -96,11 +96,11 @@ export async function getSession(): Promise<Session | null> {
 export async function updateSession(session: Session): Promise<void> {
   const token = cookies().get(SESSION_COOKIE_NAME)?.value;
 
-  if (!token || !globalThis.sessionStore) {
+  if (!token || !(globalThis as any).sessionStore) {
     return;
   }
 
-  globalThis.sessionStore.set(token, JSON.stringify(session));
+  (globalThis as any).sessionStore.set(token, JSON.stringify(session));
 }
 
 /**
