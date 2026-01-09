@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
       amount: validatedData.amount,
       categoryId: validatedData.categoryId,
       description: validatedData.description,
-      date: validatedData.date,
+      date: new Date(validatedData.date),
     });
 
     // 记录访问日志
